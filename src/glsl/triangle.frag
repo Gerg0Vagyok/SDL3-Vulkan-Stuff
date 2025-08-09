@@ -34,13 +34,29 @@ int ProcessCoord(UNIT c_real, UNIT c_imag, int MaxIterations) {
 }
 
 void main() {
-	UNIT c_real = ((gl_FragCoord.x / pc.width) * 4.0 - 2.5) * (float(pc.width) / float(pc.height));
-	UNIT c_imag = (gl_FragCoord.y / pc.height) * 4.0 - 2.0;
-	int ProcessedCoordColor = ProcessCoord(c_real, c_imag, MAXITERS);
-	if (ProcessedCoordColor == MAXITERS) {
+		UNIT centered_x = gl_FragCoord.x - UNIT(pc.width) * 0.5;
+		UNIT centered_y = gl_FragCoord.y - UNIT(pc.height) * 0.5;
+
+		UNIT zoomed_x = centered_x / UNIT(pc.scale);
+		UNIT zoomed_y = centered_y / UNIT(pc.scale);
+
+		UNIT final_x = zoomed_x - UNIT(pc.x);
+		UNIT final_y = zoomed_y - UNIT(pc.y);
+
+		UNIT c_real = (final_x / UNIT(pc.width)) * 4.0;
+		UNIT c_imag = (final_y / UNIT(pc.height)) * 4.0;
+
+		c_real *= UNIT(pc.width) / UNIT(pc.height);
+
+	float iter = float(ProcessCoord(c_real, c_imag, MAXITERS));
+	if (iter == MAXITERS) {
 		outColor = vec4(0.0, 0.0, 0.0, 1.0);
 	} else {
-		float intensity = pow(float(ProcessedCoordColor) / float(MAXITERS), 0.4);
+		float r2 = max(float(c_real*c_real + c_imag*c_imag), 1e-10);
+		float log_zn = log(r2) * 0.5;
+		float nu = log(log_zn / log(float(2.0))) / log(2.0);
+		iter = iter + 1.0 - log_zn;  // smooth iteration count
+		float intensity = pow(iter / float(MAXITERS), 0.4);
 		outColor = vec4(intensity, 0.0, 0.0, 1.0);
 	}
 }

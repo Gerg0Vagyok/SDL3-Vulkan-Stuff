@@ -375,13 +375,39 @@ int main(int argc, char **argv) {
 
 	int shouldRender = 1;
 	int windowResized = 1;
+	int MouseDown = 0;
+	int MouseMove = 0;
+	int MouseScrolled = 0;
 	int running = 1;
 	while (running) {
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
-			if (event.type == SDL_EVENT_QUIT) running = 0;
-			if (event.type == SDL_EVENT_WINDOW_RESIZED) {
+			if (event.type == SDL_EVENT_QUIT) {running = 0;}
+			else if (event.type == SDL_EVENT_WINDOW_RESIZED) {
 				windowResized = 1;
+				shouldRender = 1;
+			}
+			else if (event.type == SDL_EVENT_MOUSE_BUTTON_UP && event.button.button == SDL_BUTTON_LEFT) {
+				MouseDown = 0;
+				shouldRender = 1;
+			}
+			else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT) {
+				MouseDown = 1;
+				shouldRender = 1;
+			}
+			else if (event.type == SDL_EVENT_MOUSE_MOTION && MouseDown) {
+				constants.x += event.motion.xrel/constants.scale;
+				constants.y += event.motion.yrel/constants.scale;
+				shouldRender = 1;
+			}
+			else if (event.type == SDL_EVENT_MOUSE_WHEEL) {
+				if (event.wheel.y < 0) {
+					constants.scale /= 1.1;
+					MouseScrolled = 1;
+				} else if (event.wheel.y > 0) {
+					constants.scale *= 1.1;
+					MouseScrolled = 1;
+				}
 				shouldRender = 1;
 			}
 		}
@@ -486,6 +512,10 @@ int main(int argc, char **argv) {
 			windowResized = 0;
 		}
 
+		vkCmdPushConstants(commandBuffer, pipelineLayout, 
+						   VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, 
+						   sizeof(struct PassData), &constants);
+
 		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
@@ -514,8 +544,12 @@ int main(int argc, char **argv) {
 			.pSwapchains = &swapchain,
 			.pImageIndices = &imageIndex
 		};
+
+		printf("Mouse X: %f | Mouse Y: %f\nWidth: %d | Height: %d\nScale: %f\n", constants.x, constants.y, constants.width, constants.height, constants.scale);
+
 		vkQueuePresentKHR(presentQueue, &presentInfo);
 		shouldRender = 0;
+		MouseScrolled = 0;
 	}
 
 	SDL_DestroyWindow(window);
