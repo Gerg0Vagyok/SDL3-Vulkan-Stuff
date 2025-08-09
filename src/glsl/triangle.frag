@@ -1,6 +1,15 @@
 #version 450
 #extension GL_ARB_gpu_shader_fp64 : enable
 layout(location = 0) out vec4 outColor;
+layout(location = 0) in vec2 fragCoord;
+
+layout(push_constant) uniform PassData {
+    int width;
+    int height;
+    double x;
+    double y;
+    double scale;
+} pc;
 
 #define UNIT double
 #define MAXITERS 1024
@@ -25,8 +34,8 @@ int ProcessCoord(UNIT c_real, UNIT c_imag, int MaxIterations) {
 }
 
 void main() {
-	UNIT c_real = (gl_FragCoord.x / 800.0) * 4.0 - 2.5;
-	UNIT c_imag = (gl_FragCoord.y / 800.0) * 4.0 - 2.0;
+	UNIT c_real = ((fragCoord.x / pc.width) * 4.0 - 2.5) * (float(pc.width) / float(pc.height));
+	UNIT c_imag = (fragCoord.y / pc.height) * 4.0 - 2.0;
 	int ProcessedCoordColor = ProcessCoord(c_real, c_imag, MAXITERS);
 	if (ProcessedCoordColor == MAXITERS) {
 		outColor = vec4(0.0, 0.0, 0.0, 1.0);

@@ -11,6 +11,14 @@
 #include "shader_module_loader.h"
 #include "error.h"
 
+struct PassData {
+	int width;
+	int height;
+	double x;
+	double y;
+	double scale;
+};
+
 int main(int argc, char **argv) {
 	//int Input_Modes = 0;
 	int Input_DeviceNumber = 0;
@@ -36,6 +44,7 @@ int main(int argc, char **argv) {
 	SDL_Init(SDL_INIT_VIDEO);
 
 	SDL_Window *window = SDL_CreateWindow("Vulkan With SDL3 - By G0V", 800, 800, SDL_WINDOW_VULKAN);
+	SDL_SetWindowResizable(window, 1);
 	Uint32 VulkanNumberExtensions = 0;
 	char const * const * VulkanExtensions = SDL_Vulkan_GetInstanceExtensions(&VulkanNumberExtensions);
 	if (VulkanExtensions == NULL) {
@@ -220,6 +229,12 @@ int main(int argc, char **argv) {
 		}
 	};
 
+	VkPushConstantRange pushConstantRange = {
+		.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+		.offset = 0,
+		.size = sizeof(struct PassData),
+	};
+
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
 		.vertexBindingDescriptionCount = 0,
@@ -230,6 +245,17 @@ int main(int argc, char **argv) {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
 		.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
 		.primitiveRestartEnable = VK_FALSE
+	};
+
+	VkDynamicState dynamicStates[] = {
+		VK_DYNAMIC_STATE_VIEWPORT,
+		VK_DYNAMIC_STATE_SCISSOR,
+	};
+
+	VkPipelineDynamicStateCreateInfo dynamicStateInfo = {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+		.dynamicStateCount = 2,
+		.pDynamicStates = dynamicStates,
 	};
 
 	VkViewport viewport = {
@@ -277,7 +303,9 @@ int main(int argc, char **argv) {
 	};
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
-		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+		.pushConstantRangeCount = 1,
+		.pPushConstantRanges = &pushConstantRange
 	};
 
 	VkPipelineLayout pipelineLayout;
@@ -295,7 +323,8 @@ int main(int argc, char **argv) {
 		.pColorBlendState = &colorBlending,
 		.layout = pipelineLayout,
 		.renderPass = renderPass,
-		.subpass = 0
+		.subpass = 0,
+		.pDynamicState = &dynamicStateInfo,
 	};
 
 	VkPipeline graphicsPipeline;
@@ -335,13 +364,94 @@ int main(int argc, char **argv) {
 	vkCreateSemaphore(device, &semaphoreInfo, NULL, &renderFinishedSemaphore);
 	vkCreateFence(device, &fenceInfo, NULL, &inFlightFence);
 
+	struct PassData constants = {
+		.width = ChooseExtent(&Capabilities, window).width,
+		.height = ChooseExtent(&Capabilities, window).height,
+		.x = 0.0,
+		.y = 0.0,
+		.scale = 1.0
+	};
+
+	int windowResized = 0;
 	int running = 1;
 	while (running) {
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
 			if (event.type == SDL_EVENT_QUIT) running = 0;
+			if (event.type == SDL_EVENT_WINDOW_RESIZED) {
+				windowResized = 1;
+			}
 		}
-	  
+
+		int w, h;
+		SDL_GetWindowSize(window, &w, &h);
+		if (w == 0 || h == 0) continue;
+
+		if (windowResized) {
+			vkDeviceWaitIdle(device);
+
+			for (uint32_t i = 0; i < imageCount; i++) {
+				vkDestroyImageView(device, swapchainImageViews[i], NULL);
+				vkDestroyFramebuffer(device, swapchainFramebuffers[i], NULL);
+			}
+			vkDestroySwapchainKHR(device, swapchain, NULL);
+
+			vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, Surface, &Capabilities);
+			
+			VulkanResultVar = GetSwapchain(physicalDevice, device, Surface, &Capabilities, 
+										   &swapchain, &surfaceFormat, &presentMode, QueueFamilies, window);
+			if (VulkanResultVar != VK_SUCCESS) {
+				error(GetErrorFlags(2, REACTION_FATAL, AUTO_NEWLINE), "Failed to recreate Swapchain! Error code: %d", VulkanResultVar);
+			}
+			
+			vkGetSwapchainImagesKHR(device, swapchain, &imageCount, NULL);
+			vkGetSwapchainImagesKHR(device, swapchain, &imageCount, swapchainImages);
+			
+			// Recreate image views and framebuffers
+			for (uint32_t i = 0; i < imageCount; i++) {
+				VkImageViewCreateInfo viewInfo = {
+					.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+					.image = swapchainImages[i],
+					.viewType = VK_IMAGE_VIEW_TYPE_2D,
+					.format = surfaceFormat.format,
+					.components = {VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, 
+								   VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY},
+					.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}
+				};    
+				vkCreateImageView(device, &viewInfo, NULL, &swapchainImageViews[i]);
+				      
+				VkFramebufferCreateInfo framebufferInfo = {
+					.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+					.renderPass = renderPass,
+					.attachmentCount = 1,
+					.pAttachments = &swapchainImageViews[i],
+					.width = Capabilities.currentExtent.width,
+					.height = Capabilities.currentExtent.height,
+					.layers = 1
+				};
+				vkCreateFramebuffer(device, &framebufferInfo, NULL, &swapchainFramebuffers[i]);
+			}
+
+			VkExtent2D extent = Capabilities.currentExtent;
+
+			VkViewport viewport = {
+				.x = 0.0f, .y = 0.0f,
+				.width = (float)extent.width,
+				.height = (float)extent.height,
+				.minDepth = 0.0f, .maxDepth = 1.0f
+			};
+			
+			VkRect2D scissor = {
+				.offset = {0, 0},
+				.extent = extent
+			};
+			
+			vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+			vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
+			windowResized = 0;
+		}
+
 		vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
 		vkResetFences(device, 1, &inFlightFence);
 
@@ -355,7 +465,10 @@ int main(int argc, char **argv) {
 		};
 		vkBeginCommandBuffer(commandBuffer, &beginInfo);
 
-		VkClearValue clearColor = {{{1.0f, 0.0f, 0.0f, 1.0f}}};
+		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
+		VkClearValue clearColor = {{{0.0f, 1.0f, 0.0f, 1.0f}}};
 		VkRenderPassBeginInfo renderPassInfo = {
 			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
 			.renderPass = renderPass,
@@ -367,6 +480,14 @@ int main(int argc, char **argv) {
 
 		vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+
+		constants.width = ChooseExtent(&Capabilities, window).width;
+		constants.height = ChooseExtent(&Capabilities, window).height;
+
+		vkCmdPushConstants(commandBuffer, pipelineLayout, 
+						   VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, 
+						   sizeof(struct PassData), &constants);
+
 		vkCmdDraw(commandBuffer, 6, 1, 0, 0);
 		vkCmdEndRenderPass(commandBuffer);
 		vkEndCommandBuffer(commandBuffer);
