@@ -52,10 +52,6 @@ void main() {
 	if (iter == MAXITERS) {
 		outColor = vec4(0.0, 0.0, 0.0, 1.0);
 	} else {
-		float r2 = max(float(c_real*c_real + c_imag*c_imag), 1e-10);
-		float log_zn = log(r2) * 0.5;
-		float nu = log(log_zn / log(float(2.0))) / log(2.0);
-		iter = iter + 1.0 - log_zn;  // smooth iteration count
 		float intensity = pow(iter / (float(MAXITERS)/4), 0.3);
 		outColor = vec4(intensity, 0.0, 0.0, 1.0);
 	}
