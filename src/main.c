@@ -210,7 +210,7 @@ int main(int argc, char **argv) {
 	}
 
 	VkShaderModule VertexShaderModule, FragmentShaderModule;
-	VulkanResultVar = LoadShadersFromFiles(device, "bin/spir-v/triangle.vert.spv", "bin/spir-v/triangle.frag.spv", &VertexShaderModule, &FragmentShaderModule);
+	VulkanResultVar = LoadShadersFromFiles(device, "spir-v/triangle.vert.spv", "spir-v/triangle.frag.spv", &VertexShaderModule, &FragmentShaderModule);
 	if (VulkanResultVar != VK_SUCCESS) {
 		error(GetErrorFlags(2, REACTION_FATAL, AUTO_NEWLINE), "Failed to create Shader Modules! Error code: %d", VulkanResultVar);
 	}
