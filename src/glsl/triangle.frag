@@ -34,8 +34,8 @@ int ProcessCoord(UNIT c_real, UNIT c_imag, int MaxIterations) {
 }
 
 void main() {
-	UNIT c_real = ((fragCoord.x / pc.width) * 4.0 - 2.5) * (float(pc.width) / float(pc.height));
-	UNIT c_imag = (fragCoord.y / pc.height) * 4.0 - 2.0;
+	UNIT c_real = ((gl_FragCoord.x / pc.width) * 4.0 - 2.5) * (float(pc.width) / float(pc.height));
+	UNIT c_imag = (gl_FragCoord.y / pc.height) * 4.0 - 2.0;
 	int ProcessedCoordColor = ProcessCoord(c_real, c_imag, MAXITERS);
 	if (ProcessedCoordColor == MAXITERS) {
 		outColor = vec4(0.0, 0.0, 0.0, 1.0);

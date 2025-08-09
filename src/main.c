@@ -20,6 +20,7 @@ struct PassData {
 };
 
 int main(int argc, char **argv) {
+	// This will be used later i swear!
 	//int Input_Modes = 0;
 	int Input_DeviceNumber = 0;
 
@@ -372,7 +373,8 @@ int main(int argc, char **argv) {
 		.scale = 1.0
 	};
 
-	int windowResized = 0;
+	int shouldRender = 1;
+	int windowResized = 1;
 	int running = 1;
 	while (running) {
 		SDL_Event event;
@@ -380,8 +382,11 @@ int main(int argc, char **argv) {
 			if (event.type == SDL_EVENT_QUIT) running = 0;
 			if (event.type == SDL_EVENT_WINDOW_RESIZED) {
 				windowResized = 1;
+				shouldRender = 1;
 			}
 		}
+
+		if (!shouldRender) continue;
 
 		int w, h;
 		SDL_GetWindowSize(window, &w, &h);
@@ -407,7 +412,6 @@ int main(int argc, char **argv) {
 			vkGetSwapchainImagesKHR(device, swapchain, &imageCount, NULL);
 			vkGetSwapchainImagesKHR(device, swapchain, &imageCount, swapchainImages);
 			
-			// Recreate image views and framebuffers
 			for (uint32_t i = 0; i < imageCount; i++) {
 				VkImageViewCreateInfo viewInfo = {
 					.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -432,24 +436,17 @@ int main(int argc, char **argv) {
 				vkCreateFramebuffer(device, &framebufferInfo, NULL, &swapchainFramebuffers[i]);
 			}
 
-			VkExtent2D extent = Capabilities.currentExtent;
-
-			VkViewport viewport = {
+			viewport = (VkViewport){
 				.x = 0.0f, .y = 0.0f,
-				.width = (float)extent.width,
-				.height = (float)extent.height,
+				.width = (float)ChooseExtent(&Capabilities, window).width,
+				.height = (float)ChooseExtent(&Capabilities, window).height,
 				.minDepth = 0.0f, .maxDepth = 1.0f
 			};
 			
-			VkRect2D scissor = {
+			scissor = (VkRect2D){
 				.offset = {0, 0},
-				.extent = extent
+				.extent = Capabilities.currentExtent
 			};
-			
-			vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-			vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-
-			windowResized = 0;
 		}
 
 		vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -465,9 +462,6 @@ int main(int argc, char **argv) {
 		};
 		vkBeginCommandBuffer(commandBuffer, &beginInfo);
 
-		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-
 		VkClearValue clearColor = {{{0.0f, 1.0f, 0.0f, 1.0f}}};
 		VkRenderPassBeginInfo renderPassInfo = {
 			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
@@ -481,12 +475,19 @@ int main(int argc, char **argv) {
 		vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-		constants.width = ChooseExtent(&Capabilities, window).width;
-		constants.height = ChooseExtent(&Capabilities, window).height;
+		if (windowResized) {
+			constants.width = ChooseExtent(&Capabilities, window).width;
+			constants.height = ChooseExtent(&Capabilities, window).height;
 
-		vkCmdPushConstants(commandBuffer, pipelineLayout, 
-						   VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, 
-						   sizeof(struct PassData), &constants);
+			vkCmdPushConstants(commandBuffer, pipelineLayout, 
+							   VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, 
+							   sizeof(struct PassData), &constants);
+
+			windowResized = 0;
+		}
+
+		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
 		vkCmdDraw(commandBuffer, 6, 1, 0, 0);
 		vkCmdEndRenderPass(commandBuffer);
@@ -514,6 +515,7 @@ int main(int argc, char **argv) {
 			.pImageIndices = &imageIndex
 		};
 		vkQueuePresentKHR(presentQueue, &presentInfo);
+		shouldRender = 0;
 	}
 
 	SDL_DestroyWindow(window);
