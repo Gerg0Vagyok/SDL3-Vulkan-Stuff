@@ -6,6 +6,7 @@ A Mandelbrot Set viewer written in C using SDL3 + Vulkan.
 # Features
 - Zoom in/out using mouse
 - Move using mouse
+- Gives information in standard output
 # Support
 - linux
 # Optimization
