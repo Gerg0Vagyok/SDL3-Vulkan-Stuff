@@ -9,7 +9,7 @@ GLSL_DIR=$(SRC_DIR)/glsl
 SPIRV_DIR=$(BIN_DIR)/spir-v
 
 TARGET=$(BIN_DIR)/main
-SOURCES=main.c hardware_device.c queue_families.c logical_device.c swap_chain.c shader_module_loader.c error.c
+SOURCES=main.c hardware_device.c queue_families.c logical_device.c swap_chain.c shader_module_loader.c error.c globals.c
 SRC_OBJECTS=$(addprefix $(SRC_DIR)/, $(SOURCES))
 BIN_OBJECTS=$(addprefix $(BIN_DIR)/, $(SOURCES:.c=.o))
 

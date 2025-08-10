@@ -4,37 +4,14 @@
 #include <SDL3/SDL_vulkan.h>
 #include <vulkan/vulkan.h>
 #include <limits.h>
+#include "globals.h"
 #include "hardware_device.h"
 #include "queue_families.h"
 #include "logical_device.h"
 #include "swap_chain.h"
 #include "shader_module_loader.h"
 #include "error.h"
-
-#define CS_S_R(x) #x
-#define S(x) CS_S_R(x)
-
-// WINDOW SETTINGS
-#define WINDOW_RESIZABLE 1 // If you can resize the window, i might add a dynamic switch,
-						   // but there are compile time ifs already so this will probably be 1 then you can set it using a variable.
-
-// VULKAN APP SETTINGS
-#define VULKAN_APP_NAME "SDL3VULKAN_TEMP"
-#define VULKAN_APP_VER1 0
-#define VULKAN_APP_VER2 0
-#define VULKAN_APP_VER3 2
-
-// VULKAN ENGINE SETTINGS
-#define VULKAN_ENGINE_NAME "NONE"
-#define VULKAN_ENGINE_VER1 0
-#define VULKAN_ENGINE_VER2 0
-#define VULKAN_ENGINE_VER3 1
-
-// APP SETTINGS
-#define NAME "SDL3+Vulkan"
-#define BRANCH "main"
-#define VERSION_STR "V" S(VULKAN_APP_VER1) "." S(VULKAN_APP_VER2) "." S(VULKAN_APP_VER3)
-#define NAME_STR NAME " - " BRANCH " branch"
+#include "metadata.h"
 
 struct PassData {
 	int width;
@@ -42,8 +19,6 @@ struct PassData {
 };
 
 int main(int argc, char **argv) {
-	// This will be used later i swear
-	//int Input_Modes = 0;
 	int Input_DeviceNumber = 0;
 
 	for (int i = 1; i < argc; i++) {
@@ -67,6 +42,8 @@ int main(int argc, char **argv) {
 		} else if (strcmp(argv[i], "--version") == 0) {
 			printf("%s\n%s\n", NAME_STR, VERSION_STR);
 			return 0;
+		} else if (strcmp(argv[i], "--verbose") == 0) {
+			SetArgFlag(VERBOSE, 1);
 		} else if (strcmp(argv[i], "--device-index") == 0 && i+1 != argc) {
 			char *endptr;
 			long value = strtol(argv[i+1], &endptr, 10);

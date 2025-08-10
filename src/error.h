@@ -4,7 +4,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 
-typedef enum { // NO POPUP IMPLEMENTED YET.
+typedef enum {
 	// REACTION
 	REACTION_IGNORE = 2, // just print error. - prints to console - can be turned off later maybe.
 	REACTION_WARNING = 1, // shows popup as well. - prints to console and gives popup
