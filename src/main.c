@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
+#include <SDL3_image/SDL_image.h>
 #include <vulkan/vulkan.h>
 #include <limits.h>
 #include "globals.h"
@@ -398,6 +399,24 @@ int main(int argc, char **argv) {
 		.height = ChooseExtent(&Capabilities, window).height,
 	};
 
+	SDL_Surface *FONT_ATLAS_u = IMG_Load("font_atlas.png");
+	if (!FONT_ATLAS_u) {
+		error(GetErrorFlags(2, REACTION_FATAL, AUTO_NEWLINE), "Failed to load Font Atlas! No error code!");
+	}
+
+	SDL_Surface *FONT_ATLAS = SDL_ConvertSurface(FONT_ATLAS_u, SDL_PIXELFORMAT_RGBA32);
+	SDL_DestroySurface(FONT_ATLAS_u);
+	if (!FONT_ATLAS) {
+		error(GetErrorFlags(2, REACTION_FATAL, AUTO_NEWLINE), "Failed to load Font Atlas! No error code!");
+	}
+
+	int FONT_ATLAS_W = FONT_ATLAS->w; // Get image width
+	int FONT_ATLAS_H = FONT_ATLAS->h; // Get image height
+	void *FONT_ATLAS_P = FONT_ATLAS->pixels; // Get image pixels
+	VkDeviceSize FONT_ATLAS_S = (VkDeviceSize)FONT_ATLAS_W * FONT_ATLAS_H * 4; // Image Size
+
+	// Add code to load image to gpu and stuff
+
 	int shouldRender = 1;
 	int windowResized = 1;
 	int running = 1;
@@ -546,6 +565,7 @@ int main(int argc, char **argv) {
 		vkQueuePresentKHR(presentQueue, &presentInfo);
 	}
 
+	SDL_DestroySurface(FONT_ATLAS);
 	SDL_DestroyWindow(window);
 	SDL_Quit();
 
