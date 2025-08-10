@@ -11,8 +11,8 @@
 #include "shader_module_loader.h"
 #include "error.h"
 
-#define FUCKC_S_R(x) #x
-#define S(x) FUCKC_S_R(x)
+#define CS_S_R(x) #x
+#define S(x) CS_S_R(x)
 
 // WINDOW SETTINGS
 #define WINDOW_RESIZABLE 1 // If you can resize the window, i might add a dynamic switch,
@@ -55,8 +55,10 @@ int main(int argc, char **argv) {
 			printf("./main [args]\n");
 			printf("\n");
 			printf("Args:\n");
-			printf("    --help        Display this menu and exit.\n");
-			printf("    --version     Display version number and exit.\n");
+			printf("    --help                      Display this menu and exit.\n");
+			printf("    --version                   Display version number and exit.\n");
+			printf("    --device-index [number]     Specify which device to use from the device list,\n");
+			printf("                                if its over the max loop back to the first.\n");
 			printf("\n");
 			return 0;
 		} else if (strcmp(argv[i], "--version") == 0) {
