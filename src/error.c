@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <SDL3/SDL.h>
 #include "error.h"
 
 uint32_t GetErrorFlags(int count, ...) {
@@ -18,7 +19,7 @@ uint32_t GetErrorFlags(int count, ...) {
 		} else if (flag == REACTION_IGNORE) {
 			RFlags |= 1 << REACTION_IGNORE;
 		} else if (flag == AUTO_NEWLINE) {
-			RFlags |= 1 << 3;
+			RFlags |= 1 << AUTO_NEWLINE;
 		}
 	}
 
@@ -28,19 +29,50 @@ uint32_t GetErrorFlags(int count, ...) {
 }
 
 void error(uint32_t Flags, const char *fmt, ...) {
+	// prefix
+	if (Flags & (1 << REACTION_FATAL)) {
+		fprintf(stderr, "FATAL ERROR: ");
+	} else if (Flags & (1 << REACTION_WARNING) || (Flags & (1 << REACTION_IGNORE) && true)) {
+		fprintf(stderr, "WARNING: ");
+	}
+
 	va_list args;
 	va_start(args, fmt);
+	va_list args_copy;
+	va_copy(args_copy, args);
 
-	fprintf(stderr, "ERROR: ");
-	vfprintf(stderr, fmt, args);
+	int len = vsnprintf(NULL, 0, fmt, args); // get length
+	char *msg = malloc(len + 1);
+	if (!msg) {
+		va_end(args_copy);
+		va_end(args);
+		return;
+	}
+	vsnprintf(msg, len + 1, fmt, args_copy);
 
+	va_end(args_copy);
 	va_end(args);
 
+	// message
+	fprintf(stderr, fmt, msg);
+
+	//others
 	if (Flags & (1 << AUTO_NEWLINE)) { // INSERT NEWLINE
 		fprintf(stderr, "\n");
 	}
 
-	if (Flags & (1 << 3)) { // FATAL
+	if (Flags & (1 << REACTION_FATAL) || Flags & (1 << REACTION_WARNING)) {
+		SDL_ShowSimpleMessageBox(
+			SDL_MESSAGEBOX_ERROR,
+			"Error",
+			msg,
+			NULL
+		);
+	}
+
+	free(msg);
+
+	if (Flags & (1 << REACTION_FATAL)) { // FATAL
 		exit(1);
 	}
 }

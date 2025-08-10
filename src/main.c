@@ -59,6 +59,9 @@ int main(int argc, char **argv) {
 			printf("    --version                   Display version number and exit.\n");
 			printf("    --device-index [number]     Specify which device to use from the device list,\n");
 			printf("                                if its over the max loop back to the first.\n");
+			printf("    --test-error-fatal          Display test fatal error.\n");
+			printf("    --test-error-warning        Display test warning.\n");
+			printf("    --test-error-ignore         Display test ignore.\n");
 			printf("\n");
 			return 0;
 		} else if (strcmp(argv[i], "--version") == 0) {
@@ -71,8 +74,14 @@ int main(int argc, char **argv) {
 				Input_DeviceNumber = (int)value;
 				i++;
 			}
+		} else if (strcmp(argv[i], "--test-error-fatal") == 0) {
+			error(GetErrorFlags(2, REACTION_FATAL, AUTO_NEWLINE), "'%s' argument passed!", argv[i]);
+		} else if (strcmp(argv[i], "--test-error-warning") == 0) {
+			error(GetErrorFlags(2, REACTION_WARNING, AUTO_NEWLINE), "'%s' argument passed!", argv[i]);
+		} else if (strcmp(argv[i], "--test-error-ignore") == 0) {
+			error(GetErrorFlags(2, REACTION_IGNORE, AUTO_NEWLINE), "'%s' argument passed!", argv[i]);
 		} else {
-			error(GetErrorFlags(1, REACTION_IGNORE, AUTO_NEWLINE), "Invalid arg: %s", argv[i]);
+			error(GetErrorFlags(2, REACTION_IGNORE, AUTO_NEWLINE), "Invalid arg: %s", argv[i]);
 		}
 	}
 
@@ -99,10 +108,10 @@ int main(int argc, char **argv) {
 	VkApplicationInfo appInfo = {
 		.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
 		.pNext = NULL,
-		.pApplicationName = "TestApp",
-		.applicationVersion = VK_MAKE_VERSION(1, 0, 0),
-		.pEngineName = "None",
-		.engineVersion = VK_MAKE_VERSION(1, 0, 0),
+		.pApplicationName = VULKAN_APP_NAME,
+		.applicationVersion = VK_MAKE_VERSION(VULKAN_APP_VER1, VULKAN_APP_VER2, VULKAN_APP_VER3),
+		.pEngineName = VULKAN_ENGINE_NAME,
+		.engineVersion = VK_MAKE_VERSION(VULKAN_ENGINE_VER1, VULKAN_ENGINE_VER2, VULKAN_ENGINE_VER3),
 		.apiVersion = VK_API_VERSION_1_0,
 	};
 	VkInstanceCreateInfo createInfo = {
