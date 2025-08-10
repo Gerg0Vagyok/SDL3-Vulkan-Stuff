@@ -11,7 +11,30 @@
 #include "shader_module_loader.h"
 #include "error.h"
 
-#define RESIZABLE 1
+#define FUCKC_S_R(x) #x
+#define S(x) FUCKC_S_R(x)
+
+// WINDOW SETTINGS
+#define WINDOW_RESIZABLE 1 // If you can resize the window, i might add a dynamic switch,
+						   // but there are compile time ifs already so this will probably be 1 then you can set it using a variable.
+
+// VULKAN APP SETTINGS
+#define VULKAN_APP_NAME "SDL3VULKAN_TEMP"
+#define VULKAN_APP_VER1 0
+#define VULKAN_APP_VER2 0
+#define VULKAN_APP_VER3 2
+
+// VULKAN ENGINE SETTINGS
+#define VULKAN_ENGINE_NAME "NONE"
+#define VULKAN_ENGINE_VER1 0
+#define VULKAN_ENGINE_VER2 0
+#define VULKAN_ENGINE_VER3 1
+
+// APP SETTINGS
+#define NAME "SDL3+Vulkan"
+#define BRANCH "main"
+#define VERSION_STR "V" S(VULKAN_APP_VER1) "." S(VULKAN_APP_VER2) "." S(VULKAN_APP_VER3)
+#define NAME_STR NAME " - " BRANCH " branch"
 
 struct PassData {
 	int width;
@@ -25,7 +48,19 @@ int main(int argc, char **argv) {
 
 	for (int i = 1; i < argc; i++) {
 		if (strcmp(argv[i], "--help") == 0) {
-			printf("Help menu i guess.\n");
+			printf("%s! %s Branch!\n", NAME, BRANCH);
+			printf("Made by Gerg0Vagyok\n");
+			printf("\n");
+			printf("How to use:\n");
+			printf("./main [args]\n");
+			printf("\n");
+			printf("Args:\n");
+			printf("    --help        Display this menu and exit.\n");
+			printf("    --version     Display version number and exit.\n");
+			printf("\n");
+			return 0;
+		} else if (strcmp(argv[i], "--version") == 0) {
+			printf("%s\n%s\n", NAME_STR, VERSION_STR);
 			return 0;
 		} else if (strcmp(argv[i], "--device-index") == 0 && i+1 != argc) {
 			char *endptr;
@@ -44,8 +79,8 @@ int main(int argc, char **argv) {
 	SDL_Init(SDL_INIT_VIDEO);
 
 	SDL_Window *window = SDL_CreateWindow("Vulkan With SDL3 - By G0V", 800, 800, SDL_WINDOW_VULKAN);
-	#if RESIZABLE
-	SDL_SetWindowResizable(window, RESIZABLE);
+	#if WINDOW_RESIZABLE
+	SDL_SetWindowResizable(window, WINDOW_RESIZABLE);
 	#endif
 	Uint32 VulkanNumberExtensions = 0;
 	char const * const * VulkanExtensions = SDL_Vulkan_GetInstanceExtensions(&VulkanNumberExtensions);
@@ -249,7 +284,7 @@ int main(int argc, char **argv) {
 		.primitiveRestartEnable = VK_FALSE
 	};
 
-	#if RESIZABLE
+	#if WINDOW_RESIZABLE
 	VkDynamicState dynamicStates[] = {
 		VK_DYNAMIC_STATE_VIEWPORT,
 		VK_DYNAMIC_STATE_SCISSOR,
@@ -328,7 +363,7 @@ int main(int argc, char **argv) {
 		.layout = pipelineLayout,
 		.renderPass = renderPass,
 		.subpass = 0,
-		#if RESIZABLE
+		#if WINDOW_RESIZABLE
 		.pDynamicState = &dynamicStateInfo,
 		#endif
 	};
@@ -394,7 +429,7 @@ int main(int argc, char **argv) {
 		SDL_GetWindowSize(window, &w, &h);
 		if (w == 0 || h == 0) continue;
 
-		#if RESIZABLE
+		#if WINDOW_RESIZABLE
 		if (windowResized) {
 			vkDeviceWaitIdle(device);
 
@@ -479,7 +514,7 @@ int main(int argc, char **argv) {
 		vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-		#if RESIZABLE
+		#if WINDOW_RESIZABLE
 		if (windowResized) {
 			constants.width = ChooseExtent(&Capabilities, window).width;
 			constants.height = ChooseExtent(&Capabilities, window).height;
