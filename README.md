@@ -12,3 +12,5 @@ Slightly optimized.
 - Doesn't re-render if no inputs are given, saving resources.
 # Comments in code
 ### MINIMAL
+# How to help?
+Currently i'm looking to name the whole project. i guess open an issue on main.

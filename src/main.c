@@ -35,9 +35,9 @@ int main(int argc, char **argv) {
 			printf("    --version                   Display version number and exit.\n");
 			printf("    --device-index [number]     Specify which device to use from the device list,\n");
 			printf("                                if its over the max loop back to the first.\n");
-			printf("    --test-error-fatal          Display test fatal error.\n");
-			printf("    --test-error-warning        Display test warning.\n");
-			printf("    --test-error-ignore         Display test ignore.\n");
+			printf("    --test-error-fatal          Display fatal error.\n");
+			printf("    --test-error-warning        Display warning.\n");
+			printf("    --test-error-ignore         Display ignore.\n");
 			printf("\n");
 			return 0;
 		} else if (strcmp(argv[i], "--version") == 0) {
@@ -415,6 +415,100 @@ int main(int argc, char **argv) {
 	void *FONT_ATLAS_P = FONT_ATLAS->pixels; // Get image pixels
 	VkDeviceSize FONT_ATLAS_S = (VkDeviceSize)FONT_ATLAS_W * FONT_ATLAS_H * 4; // Image Size
 
+	// START
+	VkBufferCreateInfo BufInfo = {
+		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+		.size = FONT_ATLAS_S,
+		.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+	};
+
+	VkBuffer stagingBuffer;
+	VulkanResultVar = vkCreateBuffer(device, &BufInfo, NULL, &stagingBuffer);
+	if (VulkanResultVar != VK_SUCCESS) {
+		error(GetErrorFlags(2, REACTION_FATAL, AUTO_NEWLINE), "Failed to create Staging Buffer! Error code: %d", VulkanResultVar);
+	}
+
+	VkMemoryRequirements MemReq;
+	vkGetBufferMemoryRequirements(device, stagingBuffer, &MemReq);
+
+	VkPhysicalDeviceMemoryProperties MemProps;
+	vkGetPhysicalDeviceMemoryProperties(physicalDevice, &MemProps);
+	uint32_t memTypeIndex = UINT32_MAX;
+	for (uint32_t i = 0; i < MemProps.memoryTypeCount; i++) {
+		if ((MemReq.memoryTypeBits & (1 << i)) &&
+			(MemProps.memoryTypes[i].propertyFlags & (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))
+				== (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
+			memTypeIndex = i;
+			break;
+		}
+	}
+	if (memTypeIndex == UINT32_MAX) {
+		vkDestroyBuffer(device, stagingBuffer, NULL);
+		error(GetErrorFlags(2, REACTION_FATAL, AUTO_NEWLINE), "Failed to get Suiatable Memory Type! No Error code!");
+	}
+
+	VkMemoryAllocateInfo AllocInfo = {
+		.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+		.allocationSize = MemReq.size,
+		.memoryTypeIndex = memTypeIndex
+	};
+
+	VkDeviceMemory StagingMemory;
+	VulkanResultVar = vkAllocateMemory(device, &AllocInfo, NULL, &StagingMemory);
+	if (VulkanResultVar != VK_SUCCESS) {
+		vkDestroyBuffer(device, stagingBuffer, NULL);
+		error(GetErrorFlags(2, REACTION_FATAL, AUTO_NEWLINE), "Failed to Allocate Memory! Error code: %d", VulkanResultVar);
+	}
+
+	VulkanResultVar = vkBindBufferMemory(device, stagingBuffer, StagingMemory, 0);
+	if (VulkanResultVar != VK_SUCCESS) {
+		vkDestroyBuffer(device, stagingBuffer, NULL);
+		vkFreeMemory(device, StagingMemory, NULL);
+		error(GetErrorFlags(2, REACTION_FATAL, AUTO_NEWLINE), "Failed to Bind Memory! Error code: %d", VulkanResultVar);
+	}
+
+	void *data;
+	VulkanResultVar = vkMapMemory(device, StagingMemory, 0, FONT_ATLAS_S, 0, &data);
+	if (VulkanResultVar != VK_SUCCESS) {
+		vkDestroyBuffer(device, stagingBuffer, NULL);
+		vkFreeMemory(device, StagingMemory, NULL);
+		error(GetErrorFlags(2, REACTION_FATAL, AUTO_NEWLINE), "Failed to Map Memory! Error code: %d", VulkanResultVar);
+	}
+	memcpy(data, FONT_ATLAS_P, (size_t)FONT_ATLAS_S);
+	vkUnmapMemory(device, StagingMemory);
+
+	VkImageCreateInfo imageInfo = {
+		.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+		.imageType = VK_IMAGE_TYPE_2D,
+		.extent = {
+			.width = FONT_ATLAS_W,
+			.height = FONT_ATLAS_H,
+			.depth = 1,
+		},
+		.mipLevels = 1,
+		.arrayLayers = 1,
+		.format = VK_FORMAT_R8G8B8_UNORM,
+		.tiling = VK_IMAGE_TILING_OPTIMAL,
+		.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+		.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+		.samples = VK_SAMPLE_COUNT_1_BIT,
+		.flags = 0,
+	};
+
+	VkImage FontAtlasImage;
+	VulkanResultVar = vkCreateImage(device, &imageInfo, NULL, &FontAtlasImage);
+	if (VulkanResultVar != VK_SUCCESS) {
+		vkDestroyBuffer(device, stagingBuffer, NULL);
+		vkFreeMemory(device, StagingMemory, NULL);
+		error(GetErrorFlags(2, REACTION_FATAL, AUTO_NEWLINE), "Failed to create Vulkan Image! Error code: %d", VulkanResultVar);
+	}
+
+
+
+	// END
+
 	// Add code to load image to gpu and stuff
 
 	int shouldRender = 1;
@@ -565,6 +659,8 @@ int main(int argc, char **argv) {
 		vkQueuePresentKHR(presentQueue, &presentInfo);
 	}
 
+	Cleanup:
+	vkDeviceWaitIdle(device);
 	SDL_DestroySurface(FONT_ATLAS);
 	SDL_DestroyWindow(window);
 	SDL_Quit();
